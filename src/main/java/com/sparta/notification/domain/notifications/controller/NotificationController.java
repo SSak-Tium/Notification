@@ -14,7 +14,6 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
-    // 사용자가 구독을 시작하면 SseEmitter를 생성하고 관리
     @GetMapping(value = "/v1/notifications/{userId}/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribe(@PathVariable Long userId) {
         return notificationService.subscribe(userId);

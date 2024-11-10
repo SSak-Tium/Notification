@@ -2,16 +2,17 @@ package com.sparta.notification.domain.notifications.service;
 
 import com.sparta.notification.domain.notifications.dto.NotificationMessage;
 import com.sparta.notification.domain.notifications.entity.Notification;
+import com.sparta.notification.domain.notifications.event.KafkaListenerHandler;
+import com.sparta.notification.domain.notifications.event.SseEmitterHandler;
 import com.sparta.notification.domain.notifications.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -19,54 +20,19 @@ import java.util.concurrent.ConcurrentHashMap;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final Map<Long, SseEmitter> emitters = new ConcurrentHashMap<>();
+    private final SseEmitterHandler sseEmitterHandler;
+    private final KafkaListenerHandler kafkaListenerHandler;
 
     public SseEmitter subscribe(Long userId) {
-        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
-        emitters.put(userId, emitter);
-
-        emitter.onCompletion(() -> emitters.remove(userId));
-        emitter.onTimeout(() -> emitters.remove(userId));
-
-        sendUnreadNotifications(userId, emitter);
-        return emitter;
-    }
-
-    private void sendUnreadNotifications(Long userId, SseEmitter emitter) {
-        List<Notification> notifications = getUnreadNotifications(userId);
-        notifications.forEach(notification -> {
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("notification")
-                        .data(notification));
-                changeStatusRead(notification);
-            } catch (IOException e) {
-                emitters.remove(userId);
-                emitter.completeWithError(e);
-            }
-        });
+        String topic = "notifications-" + userId;
+        SseEmitter sseEmitter = sseEmitterHandler.addEmitter(topic);
+        return sseEmitter;
     }
 
     @Transactional
-    public void sendNotification(Long userId, NotificationMessage message) {
+    public Notification saveNotification(NotificationMessage message) {
         Notification notification = new Notification(message.getUserId(), message.getEventType(), message.getMessage());
-        notificationRepository.save(notification);
-
-        SseEmitter emitter = emitters.get(userId);
-        if (emitter != null) {
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("notification")
-                        .data(notification));
-            } catch (IOException e) {
-                emitters.remove(userId);
-                emitter.completeWithError(e);
-            }
-        }
-    }
-
-    public List<Notification> getUnreadNotifications(Long userId) {
-        return notificationRepository.findAllByUserIdAndReadStatusFalse(userId);
+        return notificationRepository.save(notification);
     }
 
     @Transactional
@@ -75,13 +41,12 @@ public class NotificationService {
         notificationRepository.save(notification);
     }
 
+    // 14일이 지난 읽음 처리된 알림 삭제 스케줄러 (매일 자정 실행)
+    @Scheduled(cron = "0 0 0 * * *")
     @Transactional
-    public void processNotification(NotificationMessage message) {
-        Notification notification = new Notification(
-                message.getUserId(),
-                message.getEventType(),
-                message.getMessage()
-        );
-        notificationRepository.save(notification);
+    public void deleteOldNotifications() {
+        LocalDateTime thresholdDate = LocalDateTime.now().minusDays(14);
+        List<Notification> oldNotifications = notificationRepository.findByReadStatusTrueAndCreatedAtBefore(thresholdDate);
+        notificationRepository.deleteAll(oldNotifications);
     }
 }
