@@ -2,7 +2,6 @@ package com.sparta.notification.domain.notifications.service;
 
 import com.sparta.notification.domain.notifications.dto.NotificationMessage;
 import com.sparta.notification.domain.notifications.entity.Notification;
-import com.sparta.notification.domain.notifications.event.KafkaListenerHandler;
 import com.sparta.notification.domain.notifications.event.SseEmitterHandler;
 import com.sparta.notification.domain.notifications.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,12 +20,10 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final SseEmitterHandler sseEmitterHandler;
-    private final KafkaListenerHandler kafkaListenerHandler;
 
     public SseEmitter subscribe(Long userId) {
         String topic = "notifications-" + userId;
-        SseEmitter sseEmitter = sseEmitterHandler.addEmitter(topic);
-        return sseEmitter;
+        return sseEmitterHandler.addEmitter(topic);
     }
 
     @Transactional
@@ -36,12 +33,18 @@ public class NotificationService {
     }
 
     @Transactional
-    public void changeStatusRead(Notification notification) {
+    public void markAsRead(Long notificationId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new RuntimeException("Notification not found"));
         notification.changeStatusRead();
         notificationRepository.save(notification);
     }
 
-    // 14일이 지난 읽음 처리된 알림 삭제 스케줄러 (매일 자정 실행)
+    @Transactional
+    public void deleteNotification(Long notificationId) {
+        notificationRepository.deleteById(notificationId);
+    }
+
     @Scheduled(cron = "0 0 0 * * *")
     @Transactional
     public void deleteOldNotifications() {
@@ -49,4 +52,9 @@ public class NotificationService {
         List<Notification> oldNotifications = notificationRepository.findByReadStatusTrueAndCreatedAtBefore(thresholdDate);
         notificationRepository.deleteAll(oldNotifications);
     }
+
+    public List<Notification> getUnreadNotifications(Long userId) {
+        return notificationRepository.findAllByUserIdOrderByCreatedAt(userId);
+    }
+
 }

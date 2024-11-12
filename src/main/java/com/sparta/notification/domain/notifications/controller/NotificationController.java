@@ -1,12 +1,15 @@
 package com.sparta.notification.domain.notifications.controller;
 
+import com.sparta.notification.domain.notifications.entity.Notification;
 import com.sparta.notification.domain.notifications.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import org.springframework.web.bind.annotation.RestController;
+
+import java.io.IOException;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -16,6 +19,31 @@ public class NotificationController {
 
     @GetMapping(value = "/v1/notifications/{userId}/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribe(@PathVariable Long userId) {
-        return notificationService.subscribe(userId);
+        SseEmitter emitter = notificationService.subscribe(userId);
+
+        List<Notification> notifications = notificationService.getUnreadNotifications(userId);
+        notifications.forEach(notification -> {
+            try {
+                emitter.send(SseEmitter.event()
+                        .name("notification")
+                        .data("EventType: " + notification.getEventType() + ", Message: " + notification.getMessage()));
+            } catch (IOException e) {
+                emitter.completeWithError(e);
+            }
+        });
+
+        return emitter;
+    }
+
+    @PatchMapping("/v1/notifications/{id}/read")
+    public ResponseEntity<Void> markAsRead(@PathVariable Long id) {
+        notificationService.markAsRead(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/v1/notifications/{id}")
+    public ResponseEntity<Void> deleteNotification(@PathVariable Long id) {
+        notificationService.deleteNotification(id);
+        return ResponseEntity.noContent().build();
     }
 }

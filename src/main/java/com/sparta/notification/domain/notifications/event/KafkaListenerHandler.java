@@ -14,14 +14,12 @@ public class KafkaListenerHandler {
     private final NotificationService notificationService;
     private final SseEmitterHandler sseEmitterHandler;
 
-    @KafkaListener(topics = "#{T(java.util.Collections).singletonList('notifications')}", groupId = "notification-group")
+    @KafkaListener(topics = "notifications", groupId = "notification-group")
     public void consume(NotificationMessage message) {
         Notification notification = notificationService.saveNotification(message);
 
         String topic = "notifications-" + message.getUserId();
         String data = "EventType: " + notification.getEventType() + ", Message: " + notification.getMessage();
         sseEmitterHandler.broadcast(topic, data);
-
-        notificationService.changeStatusRead(notification);
     }
 }
