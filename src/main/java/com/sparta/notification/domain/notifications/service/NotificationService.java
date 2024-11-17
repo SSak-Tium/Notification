@@ -27,9 +27,9 @@ public class NotificationService {
     }
 
     @Transactional
-    public Notification saveNotification(NotificationMessage message) {
+    public void saveNotification(NotificationMessage message) {
         Notification notification = new Notification(message.getUserId(), message.getEventType(), message.getMessage());
-        return notificationRepository.save(notification);
+        notificationRepository.save(notification);
     }
 
     @Transactional

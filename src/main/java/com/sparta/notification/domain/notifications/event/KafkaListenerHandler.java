@@ -1,7 +1,6 @@
 package com.sparta.notification.domain.notifications.event;
 
 import com.sparta.notification.domain.notifications.dto.NotificationMessage;
-import com.sparta.notification.domain.notifications.entity.Notification;
 import com.sparta.notification.domain.notifications.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -16,10 +15,12 @@ public class KafkaListenerHandler {
 
     @KafkaListener(topics = "notifications", groupId = "notification-group")
     public void consume(NotificationMessage message) {
-        Notification notification = notificationService.saveNotification(message);
 
         String topic = "notifications-" + message.getUserId();
-        String data = "EventType: " + notification.getEventType() + ", Message: " + notification.getMessage();
+        String data = "EventType: " + message.getEventType() + ", Message: " + message.getMessage();
+
         sseEmitterHandler.broadcast(topic, data);
+
+        notificationService.saveNotification(message);
     }
 }

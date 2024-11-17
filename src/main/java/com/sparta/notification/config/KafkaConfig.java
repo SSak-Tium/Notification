@@ -32,7 +32,7 @@ public class KafkaConfig {
                 "127.0.0.1:19092,127.0.0.1:19093,127.0.0.1:19094");
         producerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         producerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        producerConfig.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, "org.apache.kafka.clients.producer.RoundRobinPartitioner");
+        producerConfig.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, "org.apache.kafka.clients.producer.UniformStickyPartitioner");
 
         return new DefaultKafkaProducerFactory<>(producerConfig);
     }
