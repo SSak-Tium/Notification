@@ -1,6 +1,5 @@
 package com.sparta.notification.domain.notifications.service;
 
-import com.sparta.notification.domain.notifications.dto.NotificationMessage;
 import com.sparta.notification.domain.notifications.entity.Notification;
 import com.sparta.notification.domain.notifications.event.SseEmitterHandler;
 import com.sparta.notification.domain.notifications.repository.NotificationRepository;
@@ -24,12 +23,6 @@ public class NotificationService {
     public SseEmitter subscribe(Long userId) {
         String topic = "notifications-" + userId;
         return sseEmitterHandler.addEmitter(topic);
-    }
-
-    @Transactional
-    public void saveNotification(NotificationMessage message) {
-        Notification notification = new Notification(message.getUserId(), message.getEventType(), message.getMessage());
-        notificationRepository.save(notification);
     }
 
     @Transactional
