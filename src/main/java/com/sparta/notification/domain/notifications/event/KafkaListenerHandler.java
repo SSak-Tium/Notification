@@ -20,7 +20,5 @@ public class KafkaListenerHandler {
         String data = "EventType: " + message.getEventType() + ", Message: " + message.getMessage();
 
         sseEmitterHandler.broadcast(topic, data);
-
-        notificationService.saveNotification(message);
     }
 }
